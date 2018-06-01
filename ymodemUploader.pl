@@ -1,32 +1,7 @@
-use Digest::CRC qw(crc16) ;
+#!/usr/bin/perl
 use Socket ;
-use Win32::SerialPort;
 
-sub dbgComInit
-{
-	my $com_port = $_[0] ;
-	$com_port->error_msg(1);            # use built-in error messages
-	$com_port->user_msg(1);
-	
-	$com_port->databits(8);
-	$com_port->baudrate(115200);
-	$com_port->parity("none");
-	$com_port->stopbits(1);
-	$com_port->handshake("none");
-	$com_port->buffers(4096,4096) ;
-	
-	$com_port->read_interval(1);    # max time between read char (milliseconds)
-	$com_port->read_char_time(1);     # avg time between read char
-	$com_port->read_const_time(3);  # total = (avg * bytes) + const
-#	$com_port->write_char_time(1);
-#	$com_port->write_const_time(100);
-
-	$com_port->write_settings || die "Couldn't write settings\n";
-}
-
-
-
-my $MODEM_SOH = 0x01 ;        #数据块起始字符 
+my $MODEM_SOH = 0x01 ;
 my $MODEM_STX = 0x02 ;
 my $MODEM_EOT = 0x04 ;
 my $MODEM_ACK = 0x06 ;
@@ -92,7 +67,8 @@ sub ym_crc16
 
 sub TEST_UART_Send
 {
-	$com->write($_[0]) ;
+	# not 8bit clean?
+	printf("%s",$_[0]) ;
 =nobufprint
 	print unpack("H*" ,$_[0]) ;
 	print "\n" ;
@@ -109,14 +85,6 @@ sub getNextFileSeg
 	$sent_bytes += $len ;
 #	print "++$len\n" ;
 	($buf ,$len) ;
-}
-
-sub printSendProgress
-{
-	my $progress_percent = (100*$sent_bytes)/$filesize ;
-	printf "\b" x length($progress_str) ;
-	$progress_str = sprintf "%%%d" ,$progress_percent ;
-	printf "$progress_str" ;
 }
 
 sub getTransferNo
@@ -278,17 +246,13 @@ sub trigger_recv_NAK
 	}
 }
 
-my $port_name = $ARGV[0] ;
-my $filepath = $ARGV[1] ;
+my $filepath = $ARGV[0] ;
 
 if (! -e $filepath) 
 {
 	print "$filepath not found\n" ;
 	return ;
 }
-
-$com = new Win32::SerialPort (uc $port_name) || die "Can't open $port_name: $^E\n";    # $quiet is optional
-dbgComInit($com) ;
 
 open DATA ,'<' ,$filepath or die "open $filepath failed\n" ;
 binmode DATA ;
@@ -298,16 +262,12 @@ $filename =~ s/^.*\\// ;
 @file_args = stat($filepath) ;
 $filesize = $file_args[7] ;
 
-printf "$filename ,$filesize bytes -- " ;
-
 $current_sts = $STS_IDLE ;
 $tmp_sts = 100 ;
-$com->purge_rx ;
 
 while(1)
 {
-	my ($count_in, $tmpa) = $com->read(4096);
-	$com->purge_rx ;
+	my ($count_in, $tmpa) = read(<STDIN>,4096);
 
 	next if (0 == $count_in) ;
 
@@ -347,11 +307,9 @@ while(1)
 	}
 	last if ($round_finish) ;
 
-	printSendProgress() ;
 }
 
 #printf "\nYMODEM Send $filepath done !!\n" ;
 
 RETURN_FLAG:
 close DATA ;
-$com->close ;
