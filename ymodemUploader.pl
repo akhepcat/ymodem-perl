@@ -27,8 +27,6 @@ my $current_sts = $STS_IDLE ;
 my $transfer_no = 0 ;
 my $seg_buf ;
 
-my $com ;
-
 my $filename ;
 my $filesize ;
 my $round_finish = 0 ;
@@ -250,8 +248,8 @@ my $filepath = $ARGV[0] ;
 
 if (! -e $filepath) 
 {
-	print "$filepath not found\n" ;
-	return ;
+	die "filespec $filepath not found\n" ;
+
 }
 
 open DATA ,'<' ,$filepath or die "open $filepath failed\n" ;
@@ -265,9 +263,12 @@ $filesize = $file_args[7] ;
 $current_sts = $STS_IDLE ;
 $tmp_sts = 100 ;
 
+open(INALIAS,  "<&=STDIN")  or die "Couldn't alias STDIN : $!";
+
 while(1)
 {
-	my ($count_in, $tmpa) = read(<STDIN>,4096);
+	my ($count_in, $tmpa);
+	$count_in = read (INALIAS ,$tmpa , 4096);
 
 	next if (0 == $count_in) ;
 
